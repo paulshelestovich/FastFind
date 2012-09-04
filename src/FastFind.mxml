@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   creationComplete="creationCompleteHandler(event)"
+					   initialize="initializeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.utils.StringUtil;
+
+			import spark.components.TextInput;
+			import spark.events.GridEvent;
+
+			public static const FILE_PATH:String = "instruments.json";
+
+
+			public var instrumentWindow:InstumentWindow;
+
+			[Bindable]
+			public var instruments:ArrayCollection;
+
+			public var instrumentsFile:File;
+
+			public var instrumentsFileStream:FileStream;
+
+			public var columnFilers:Dictionary = new Dictionary();
+			
+			
+			private var selectedIndex:int = -1;
+
+
+			protected function initializeHandler(event:FlexEvent):void {
+				sizeAndPosition();
+				openFile();
+				readInstruments();
+			}
+
+			protected function sizeAndPosition():void {
+				var screenBounds:Rectangle = Screen.mainScreen.bounds;
+				nativeWindow.width = screenBounds.width * 0.8;
+				nativeWindow.height = screenBounds.height * 0.8;
+				nativeWindow.x = (screenBounds.width - nativeWindow.width) / 2;
+				nativeWindow.y = (screenBounds.height - nativeWindow.height) / 2;
+				nativeWindow.minSize = new Point(600, 300);
+				maximize();
+			}
+
+			protected function creationCompleteHandler(event:FlexEvent):void {
+				buildFilers();
+				dataGrid.addEventListener(GridEvent.SEPARATOR_MOUSE_UP, column_resizeHandler);
+			}
+
+			protected function openFile():void {
+				instrumentsFile = File.documentsDirectory.resolvePath(FILE_PATH);
+				instrumentsFileStream = new FileStream();
+			}
+
+			protected function readInstruments():void {
+				if (instrumentsFile.exists) {
+					instrumentsFileStream.open(instrumentsFile, FileMode.READ);
+					var instrumentsJson:String = instrumentsFileStream.readUTFBytes(instrumentsFileStream.bytesAvailable);
+				} else {
+					instrumentsFileStream.open(instrumentsFile, FileMode.WRITE);
+				}
+				instrumentsFileStream.close();
+				instrumentsJson = StringUtil.trim(instrumentsJson);
+				var instrumentsArray:Array = [];
+				if (instrumentsJson.length > 0) {
+					instrumentsArray = JSON.parse(instrumentsJson) as Array;
+				}
+				instruments = new ArrayCollection(instrumentsArray);
+				instruments.filterFunction = instrumentsFilter;
+			}
+
+			protected function addInstrumentButton_clickHandler(event:MouseEvent):void {
+				openInstrumentsWindow();
+			}
+
+			protected function openInstrumentsWindow(edit:Boolean = false):void {
+				instrumentWindow = new InstumentWindow();
+				if (edit) {
+					instrumentWindow.model = dataGrid.selectedItem;
+					selectedIndex = dataGrid.selectedIndex;
+				} else {
+					instrumentWindow.maxNumber = calculateMaxNumber();
+				}
+				instrumentWindow.width = Screen.mainScreen.bounds.width * 0.4;
+				instrumentWindow.height = Screen.mainScreen.bounds.height * 0.8;
+				instrumentWindow.open();
+				changeActiveWindow(false);
+				instrumentWindow.move(bounds.x + (bounds.width - instrumentWindow.width) / 2, bounds.y);
+				
+				instrumentWindow.addEventListener(Event.CLOSE, instrumentWindow_closeHandler);
+				instrumentWindow.saveButton.addEventListener(MouseEvent.CLICK, saveButton_clickHandler);
+				instrumentWindow.cancelButton.addEventListener(MouseEvent.CLICK, cancelButton_clickHandler);
+			}
+
+			protected function changeActiveWindow(active:Boolean):void {
+				mouseEnabled = active;
+				mouseChildren = active;
+			}
+
+			protected function removeInstrumentButton_clickHandler(event:MouseEvent):void {
+				Alert.show("Вы уверены, что хотите удалить инструмент '" + dataGrid.selectedItem.name + 
+					"' ?", "Предупреждение", Alert.YES | Alert.NO, this, alert_closeHandler);
+			}
+
+			protected function alert_closeHandler(event:CloseEvent):void {
+				if (event.detail == Alert.YES) {
+					instruments.removeItemAt(instruments.getItemIndex(dataGrid.selectedItem));
+					saveInstruments();
+					clearFilters();
+				}
+			}
+
+			protected function updateButton_clickHandler(event:MouseEvent):void {
+				readInstruments();
+				buildFilers();
+			}
+
+			protected function saveButton_clickHandler(event:MouseEvent):void {
+				instrumentWindow.close();
+				if (selectedIndex >= 0) {
+					instruments.setItemAt(instrumentWindow.instrument, selectedIndex);
+				} else {
+					instruments.addItem(instrumentWindow.instrument);
+				}
+				saveInstruments();
+			}
+
+			protected function cancelButton_clickHandler(event:MouseEvent):void {
+				instrumentWindow.close();
+			}
+
+			protected function instrumentWindow_closeHandler(event:Event):void {
+				changeActiveWindow(true);
+				selectedIndex = -1;
+			}
+
+			protected function clearFilters():void {
+				for each (var column:GridColumn in columns.source) {
+					columnFilers[column].text = "";
+				}
+				instruments.refresh();
+			}
+
+			public function calculateMaxNumber():int {
+				var max:int = 0;
+				for each (var instrument:Object in instruments) {
+					if (instrument.number > max) {
+						max = instrument.number;
+					}
+				}
+
+				return max;
+			}
+
+			public function saveInstruments():void {
+				var instrumentsJson:String = JSON.stringify(instruments.source);
+				instrumentsFileStream = new FileStream();
+				instrumentsFileStream.open(instrumentsFile, FileMode.WRITE);
+				instrumentsFileStream.writeUTFBytes(instrumentsJson);
+				instrumentsFileStream.close();
+			}
+
+			protected function buildFilers():void {
+				var filterInput:TextInput;
+				for each (var column:GridColumn in columns.source) {
+					filterInput = new TextInput();
+					filterInput.addEventListener(Event.CHANGE, filter_changeHandler);
+					resizeFilter(filterInput, column.columnIndex);
+					columnFilers[column] = filterInput;
+					filtersGroup.addElement(filterInput);
+				}
+			}
+
+			protected function resizeFilter(filter:TextInput, columnIndex:int):void {
+				filter.move(dataGrid.grid.getCellX(0, columnIndex), 0);
+				filter.width = dataGrid.grid.getColumnWidth(columnIndex);
+			}
+
+			protected function column_resizeHandler(event:Event):void {
+				if (dataGrid.hasEventListener(FlexEvent.UPDATE_COMPLETE)) {
+					dataGrid.removeEventListener(FlexEvent.UPDATE_COMPLETE, column_resizeHandler);
+				}
+				for each (var column:GridColumn in columns.source) {
+					resizeFilter(columnFilers[column], column.columnIndex);
+				}
+			}
+
+			protected function filter_changeHandler(event:Event):void {
+				instruments.refresh();
+			}
+
+			public function instrumentsFilter(item:Object):Boolean {
+				var value:String;
+				var filter:TextInput;
+				for each (var column:GridColumn in columns.source) {
+					value = item[column.dataField].toString();
+					filter = columnFilers[column];
+					if (value.toLowerCase().indexOf(filter.text.toLowerCase()) < 0) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			protected function dataGrid_resizeHandler(event:ResizeEvent):void {
+				if (filtersGroup.numElements > 0) {
+					dataGrid.addEventListener(FlexEvent.UPDATE_COMPLETE, column_resizeHandler);
+				}
+			}
+			
+			protected function dataGrid_doubleClickHandler(event:GridEvent):void {
+				openInstrumentsWindow(true);
+			}
+		]]>
+	</fx:Script>
+
+	<s:Scroller width="100%"
+				height="100%">
+		<s:Group width="100%"
+				 height="100%">
+			<s:layout>
+				<s:VerticalLayout/>
+			</s:layout>
+
+			<s:BorderContainer width="100%"
+							   height="30">
+				<s:layout>
+					<s:HorizontalLayout verticalAlign="middle"/>
+				</s:layout>
+
+				<s:Button id="addInstrumentButton"
+						  height="25"
+						  label="Добавить Новый Инструмент"
+						  click="addInstrumentButton_clickHandler(event)"/>
+				<s:Button id="removeInstrumentButton"
+						  height="25"
+						  label="Удалить Инструмент"
+						  enabled="{dataGrid.selectedItem}"
+						  click="removeInstrumentButton_clickHandler(event)"/>
+
+				<s:Group width="100%"/>
+				<s:Button id="updateButton"
+						  height="25"
+						  label="Обновить Данные"
+						  click="updateButton_clickHandler(event)"/>
+			</s:BorderContainer>
+
+			<s:Group id="filtersGroup"
+					 width="100%"
+					 height="20"/>
+
+			<s:DataGrid id="dataGrid"
+						width="100%"
+						height="100%"
+						dataProvider="{instruments}"
+						editable="true"
+						resize="dataGrid_resizeHandler(event)"
+						doubleClickEnabled="true"
+						gridDoubleClick="dataGrid_doubleClickHandler(event)">
+				<s:columns>
+					<s:ArrayList id="columns">
+						<s:GridColumn headerText="П/П"
+									  dataField="number"
+									  width="35"/>
+						<s:GridColumn headerText="Дата"
+									  dataField="date"
+									  width="60"/>
+						<s:GridColumn headerText="Наименование"
+									  dataField="name"
+									  width="100"/>
+						<s:GridColumn headerText="Инвентарный №"
+									  dataField="inventory"
+									  width="100"/>
+						<s:GridColumn headerText="Комплектность"
+									  dataField="completeness"
+									  width="150"/>
+						<s:GridColumn headerText="Мастер"
+									  dataField="master"
+									  width="100"/>
+						<s:GridColumn headerText="Заказчик"
+									  dataField="customer"
+									  width="100"/>
+						<s:GridColumn headerText="Контактное лицо"
+									  dataField="contact"/>
+						<s:GridColumn headerText="Телефон"
+									  dataField="phone"/>
+						<s:GridColumn headerText="Предоплата"
+									  dataField="prepayment"/>
+						<s:GridColumn headerText="Общая сумма"
+									  dataField="cost"/>
+						<s:GridColumn headerText="Дата отгрузки"
+									  dataField="delivery"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:Group>
+	</s:Scroller>
+</s:WindowedApplication>

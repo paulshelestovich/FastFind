@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  alwaysInFront="true"
+		  title="Создать/Изменить Инструмент">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.utils.StringUtil;
+			
+			
+			public static const DATE_FORMAT:String = "DD.MM.YYYY";
+
+			
+			[Bindable]
+			public var maxNumber:int;
+			
+			[Bindable]
+			public var model:Object;
+			
+			
+			public function get instrument():Object {
+				var instrument:Object = {};
+				instrument.number = StringUtil.trim(numberInput.text);
+				instrument.date = DateField.dateToString(dateField.selectedDate, DATE_FORMAT);
+				instrument.name = StringUtil.trim(nameInput.text);
+				instrument.inventory = StringUtil.trim(inventoryNumberInput.text);
+				instrument.completeness = StringUtil.trim(completenessArea.text);
+				instrument.master = StringUtil.trim(masterInput.text);
+				instrument.customer = StringUtil.trim(customerInput.text);
+				instrument.contact = StringUtil.trim(contactInput.text);
+				instrument.phone = StringUtil.trim(phoneInput.text);
+				instrument.prepayment = StringUtil.trim(prepaymentInput.text);
+				instrument.cost = StringUtil.trim(costInput.text);
+				instrument.delivery = DateField.dateToString(deliveryDateField.selectedDate, InstumentWindow.DATE_FORMAT);
+				
+				return instrument;
+			}
+		]]>
+	</fx:Script>
+
+	<s:Scroller width="100%"
+				height="100%">
+		<s:Group width="100%"
+				 height="100%">
+			<s:layout>
+				<s:VerticalLayout gap="50"/>
+			</s:layout>
+
+			<s:Form width="100%">
+				<s:layout>
+					<s:FormLayout gap="-5"/>
+				</s:layout>
+
+				<s:FormHeading label="Данные о инструменте:"/>
+
+				<s:FormItem label="Номер п/п:">
+					<s:TextInput id="numberInput"
+								 width="50%"
+								 editable="false"
+								 text="{model ? model.number : maxNumber + 1}"/>
+				</s:FormItem>
+				<s:FormItem label="Дата:">
+					<mx:DateField id="dateField"
+								  selectedDate="{DateField.stringToDate(model.date, DATE_FORMAT)}"
+								  width="50%"
+								  formatString="{DATE_FORMAT}"/>
+				</s:FormItem>
+				<s:FormItem label="Наименование:">
+					<s:TextInput id="nameInput"
+								 text="{model.name}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Инвентарный №:">
+					<s:TextInput id="inventoryNumberInput"
+								 text="{model.inventory}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Комплектность:">
+					<s:TextArea id="completenessArea"
+								text="{model.completeness}"
+								width="100%"
+								height="100"/>
+				</s:FormItem>
+				<s:FormItem label="Мастер:">
+					<s:TextInput id="masterInput"
+								 text="{model.master}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Заказчик:">
+					<s:TextInput id="customerInput"
+								 text="{model.customer}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Контактное лицо:">
+					<s:TextInput id="contactInput"
+								 text="{model.contact}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Телефон:">
+					<s:TextInput id="phoneInput"
+								 text="{model.phone}"
+								 width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Предоплата:">
+					<s:TextInput id="prepaymentInput"
+								 text="{model.prepayment}"
+								 restrict="0-9$"
+								 width="50%"/>
+				</s:FormItem>
+				<s:FormItem label="Общая сумма ремонта:">
+					<s:TextInput id="costInput"
+								 text="{model.cost}"
+								 restrict="0-9$"
+								 width="50%"/>
+				</s:FormItem>
+				<s:FormItem label="Дата отгрузки:">
+					<mx:DateField id="deliveryDateField"
+								  selectedDate="{DateField.stringToDate(model.delivery, DATE_FORMAT)}"
+								  formatString="DD.MM.YYYY"
+								  width="50%"/>
+				</s:FormItem>
+			</s:Form>
+
+			<s:Group width="100%">
+				<s:layout>
+					<s:HorizontalLayout gap="100"
+										horizontalAlign="center"/>
+				</s:layout>
+				<s:Button id="saveButton"
+						  label="Сохранить"/>
+				<s:Button id="cancelButton"
+						  label="Отменить"/>
+			</s:Group>
+		</s:Group>
+	</s:Scroller>
+</s:Window>
