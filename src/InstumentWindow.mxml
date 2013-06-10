@@ -8,18 +8,18 @@
 	<fx:Script>
 		<![CDATA[
 			import mx.utils.StringUtil;
-			
-			
+
+
 			public static const DATE_FORMAT:String = "DD.MM.YYYY";
 
-			
+
 			[Bindable]
 			public var maxNumber:int;
-			
+
 			[Bindable]
 			public var model:Object;
-			
-			
+
+
 			public function get instrument():Object {
 				var instrument:Object = {};
 				instrument.number = StringUtil.trim(numberInput.text);
@@ -34,7 +34,7 @@
 				instrument.prepayment = StringUtil.trim(prepaymentInput.text);
 				instrument.cost = StringUtil.trim(costInput.text);
 				instrument.delivery = DateField.dateToString(deliveryDateField.selectedDate, InstumentWindow.DATE_FORMAT);
-				
+
 				return instrument;
 			}
 		]]>
@@ -63,6 +63,7 @@
 				</s:FormItem>
 				<s:FormItem label="Дата:">
 					<mx:DateField id="dateField"
+								  editable="true"
 								  selectedDate="{DateField.stringToDate(model.date, DATE_FORMAT)}"
 								  width="50%"
 								  formatString="{DATE_FORMAT}"/>

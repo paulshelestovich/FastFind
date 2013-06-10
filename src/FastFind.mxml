@@ -3,7 +3,8 @@
 					   xmlns:s="library://ns.adobe.com/flex/spark"
 					   xmlns:mx="library://ns.adobe.com/flex/mx"
 					   creationComplete="creationCompleteHandler(event)"
-					   initialize="initializeHandler(event)">
+					   initialize="initializeHandler(event)"
+					   closing="closingHandler(event)">
 	<fx:Script>
 		<![CDATA[
 			import mx.collections.ArrayCollection;
@@ -13,10 +14,12 @@
 			import mx.events.CloseEvent;
 			import mx.events.FlexEvent;
 			import mx.events.ResizeEvent;
+			import mx.utils.ObjectUtil;
 			import mx.utils.StringUtil;
-
+			
 			import spark.components.TextInput;
 			import spark.events.GridEvent;
+			import spark.globalization.SortingCollator;
 
 			public static const FILE_PATH:String = "instruments.json";
 
@@ -222,6 +225,30 @@
 			protected function dataGrid_doubleClickHandler(event:GridEvent):void {
 				openInstrumentsWindow(true);
 			}
+			
+			protected function copyInstrumentButton_clickHandler(event:MouseEvent):void {
+				var instrumentCopy:Object = ObjectUtil.copy(dataGrid.selectedItem);
+				instrumentCopy.number = calculateMaxNumber() + 1;
+				instruments.addItemAt(instrumentCopy, dataGrid.selectedIndex + 1);
+				saveInstruments();
+			}
+			
+			protected function closingHandler(event:Event):void {
+				saveInstruments();
+			}
+			
+			private function numberSortCompareFunction(obj1:Object, obj2:Object, column:GridColumn):int {
+				var num1:int = parseInt(obj1[column.dataField]);
+				var num2:int = parseInt(obj2[column.dataField]);
+				if (num1 == num2) {
+					return 0;
+				} 
+				if (num1 < num2) {
+					return -1;
+				}
+				return 1;
+			}
+			
 		]]>
 	</fx:Script>
 
@@ -248,6 +275,11 @@
 						  label="Удалить Инструмент"
 						  enabled="{dataGrid.selectedItem}"
 						  click="removeInstrumentButton_clickHandler(event)"/>
+				<s:Button id="copyInstrumentButton"
+						  height="25"
+						  label="Скопировать Инструмент"
+						  enabled="{dataGrid.selectedItem}"
+						  click="copyInstrumentButton_clickHandler(event)"/>
 
 				<s:Group width="100%"/>
 				<s:Button id="updateButton"
@@ -272,7 +304,8 @@
 					<s:ArrayList id="columns">
 						<s:GridColumn headerText="П/П"
 									  dataField="number"
-									  width="35"/>
+									  width="35"
+									  sortCompareFunction="numberSortCompareFunction"/>
 						<s:GridColumn headerText="Дата"
 									  dataField="date"
 									  width="60"/>
